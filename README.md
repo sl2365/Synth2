@@ -4,6 +4,7 @@
 
 A free, open-source recreation of **Synth1**, the classic freeware synthesizer by Daichi Laboratory ([website](https://daichilab.sakura.ne.jp/softsynth/index.html)).
 
+
 Synth1 has been my go-to synth for years, as it has for many musicians, with thousands of patches on the web.
 Sadly, it seems to have been abandoned in recent years. No updates, no email replies. Mac users can keep it on life support with Rosetta, but Rosetta will be gone in macOS 28 (see [this article](https://developer.apple.com/news/?id=w5ngl9k2)).
 
@@ -20,6 +21,22 @@ Formats: macOS VST3 + AUv2, iPad AUv3, Windows VST3 (x64).
 
 ### IMPORTANT:
 This version is a fork of Chabs version. It provides several enhancements that Chab didn't include due to him wanting to keep a base version that is faithful to the original. This fork uses a different folder location than Chabs, so as not to cause conflicts. It's pretty much identical feature-wise and the sound engine is identical, though I added a new filter type: Notch.
+
+| Feature | Chab's Synth2 | Your Synth2 (sl23) |
+|---|---|---|
+| Filter types | 5 types: LP12, LP24, HP12, BP12, LPDL | 6 types, adding a resonant Notch filter with adjustable peaks |
+| Arpeggiator | 4 modes: Up, Down, Up & Down, Random | Adds As Played, following the order notes are pressed
+| GUI layout editor	Fixed interface layout	Built-in editor to move controls, resize sections, save custom layouts, undo and redo changes |
+| Custom layouts | Factory layout only | Custom layouts stored in layout.json, separately from factory positions |
+| Preset favourites | Standard preset browser | Adds a virtual Favourites bank for quick access to preferred presets |
+| Preset colour display | Standard browser colouring | Additional preset colour coding, with a user preference to enable or disable it |
+| Theme storage | Central themes.json, plus individual theme files | Individual Themes\*.json files only, with separate current-theme state |
+| Theme customisation | Standard palette editor | Additional Windows-specific colours for the voice grid, preset browser and selection display |
+| GUI interaction | Original Windows control behaviour | Improved LED double-click reset, control positioning, knob interaction and other refinements |
+| Portable data | Synth2_Data beside the VST3 bundle | Also supports Synth2_Data beside the internal VST3 binary |
+| Standard data folders | Oxo Music\Oxo Synth2 under AppData and Documents | Independent Synth2_Data folders under AppData and Documents |
+| Plugin identity | Oxo Synth2 / Oxo Music | Synth2 (sl23) / Dead Channel Audio, with separate VST3 IDs
+| Version numbering | Standard three-part version | Four-part version, starting at v1.1.5.25 |
 
 ## Download
 
@@ -94,7 +111,7 @@ Clang Compiler for Windows" and "MSBuild support for LLVM (clang-cl) toolset".
 Note: the build uses clang-cl, which produces faster code than MSVC for this project.
 
 ```bat
-build_windows.bat   # builds Windows_Build\build\VST3\Release\OxoSynth2.vst3 (does not install it)
+build_windows.bat   # builds Windows_Build\build\VST3\Release\Synth2.vst3 (does not install it)
 ```
 
 To test the plugin, close the DAW and copy the bundle into the system VST3
@@ -104,23 +121,50 @@ file stays in the bundle):
 
 ```bat
 cd /d C:\path\to\oxo_synth2
-if exist "%CommonProgramFiles%\VST3\OxoSynth2.vst3" rmdir /S /Q "%CommonProgramFiles%\VST3\OxoSynth2.vst3"
-xcopy Windows_Build\build\VST3\Release\OxoSynth2.vst3 "%CommonProgramFiles%\VST3\OxoSynth2.vst3\" /E /I /Y
+if exist "%CommonProgramFiles%\VST3\Synth2.vst3" rmdir /S /Q "%CommonProgramFiles%\VST3\Synth2.vst3"
+xcopy Windows_Build\build\VST3\Release\Synth2.vst3 "%CommonProgramFiles%\VST3\Synth2.vst3\" /E /I /Y
 ```
 
 #### Where the Windows version keeps your files
 
-- Settings and themes: `%APPDATA%\Oxo Music\Oxo Synth2\`. Themes are saved in
-  `themes.json` (the same format as on the Mac); theme files dropped into a
-  `Themes\` folder next to it (`*.json`, one theme each, named after the
-  file) are listed too.
-- Bank library: `Documents\Oxo Music\Oxo Synth2\`.
-- Portable mode: create a `Synth2_Data` folder **next to the
-  `OxoSynth2.vst3` bundle** (in a folder you can write to). When it exists,
-  the plugin keeps everything there instead: settings, `themes.json` and
-  `Themes\` in it, banks in `Synth2_Data\Presets\`. Nothing is converted or
-  moved: the usual folders stay as they are and are used again if
-  `Synth2_Data` goes away. Restart the host after adding or removing it.
+The **Windows Synth2 (sl23) fork** uses its own `Synth2_Data` folders,
+separate from the official Oxo Synth2 installation. The built-in data-folder
+name is the same in portable and non-portable configurations.
+
+**Without portable mode:**
+
+- **Settings and user data:** `%APPDATA%\Synth2_Data\` (normally
+  `C:\Users\<WindowsUsername>\AppData\Roaming\Synth2_Data\`). This is
+  where `settings.json`, `theme_current.json`, `Themes\*.json`,
+  `midi_mappings.json`, layout and other user-state/index files live.
+  Custom themes are individual files in `Themes`; **`themes.json` is not used**.
+- **Preset bank library:** `Documents\Synth2_Data\` (your Windows
+  *Documents* known folder; it can be redirected, so it is not necessarily
+  under `C:\Users`). Imported bank folders live under this library root.
+
+**With portable mode:** create a folder named `Synth2_Data` in either of these
+locations (no installation or registry changes required):
+
+1. **Beside the loaded VST3 binary:**
+   `Synth2.vst3\Contents\x86_64-win\Synth2_Data\` (inside the VST3 bundle).
+2. **Beside the outer VST3 bundle:**
+   `<VST3 installation directory>\Synth2_Data\`.
+
+If both portable folders exist, **the binary-adjacent folder takes precedence**.
+Portable mode stores settings, individual themes and other user files in that
+`Synth2_Data` folder; preset banks live in its `Presets\` subfolder. When
+neither portable folder exists, Synth2 uses the two Windows user folders
+listed above. Restart your DAW after adding, removing or relocating a portable
+folder so all plugin instances use the same selection.
+
+**Existing data is not migrated or deleted automatically.** Older data in
+`%APPDATA%\Oxo Music\Oxo Synth2\` and
+`Documents\Oxo Music\Oxo Synth2\` is not read by this Windows fork.
+Keep a backup and manually copy any desired settings, themes or bank folders
+to the new locations before relying on them. When switching to portable mode,
+place bank folders under `Synth2_Data\Presets\`, not beside the settings
+files. This Windows-only folder change does not alter the macOS/iPad storage
+locations, VST3 identity, presets or sound engine.
 
 ### Tests
 
@@ -241,9 +285,12 @@ with the project (rules, architecture, commands, measured facts), and most
 agents read it automatically. Keep it up to date as you go.
 
 If you ship your own builds, give them **their own identity** so they can be
-installed next to the official ones without host conflicts. Every identity lives in
-`Identity.xcconfig` (or override it in `Identity.local.xcconfig`); the Xcode
-project, CMake, `build_vst3.sh` and both installers read it:
+installed next to the official ones without host conflicts. The upstream
+macOS/iPad identity lives in `Identity.xcconfig` (or an override in
+`Identity.local.xcconfig`); the Xcode project and macOS build read it. The
+Windows-only sl23 fork instead reads `Windows_Build/Identity.txt` (optionally
+overridden by `Windows_Build/Identity.local.txt`), including its separate
+`Synth2_Data` user-folder names.
 
 | Key | Used for |
 |---|---|
