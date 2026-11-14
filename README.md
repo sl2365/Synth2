@@ -55,15 +55,6 @@ This fork deliberately preserves the sound of the five original filter algorithm
 
 Chab's upstream also supports Windows VST3, so the Windows port itself isn't a fork-only feature.
 
-## Download
-
-Official builds are published on the Oxo Music website:
-
-- macOS 14+ (VST3 + AU, signed and notarized): <https://oxo-music.com/products/oxo_synth2>
-- Windows 10+ x64 (VST3): <https://oxo-music.com/products/oxo_synth2> (thanks to [sl23](https://github.com/sl2365) for the contribution)
-- iPad (AUv3): <https://apps.apple.com/us/app/oxo-synth2/id6829692180>
-- Linux: not available yet. Ports are welcome: if you're interested, open an issue to signal you're working on it, fork the repository and open a pull request. Please keep it a 1:1 port of the macOS / Windows versions (no new features).
-
 ## Relationship to Synth1
 
 Synth2 is an independent recreation of Synth1 by Daichi Laboratory. It is
