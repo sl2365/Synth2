@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OxoSynth2Identity.h"
+#include "VoiceStateProxy.hpp"
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/vst/vsttypes.h"
 
@@ -21,12 +22,12 @@ inline constexpr Steinberg::Vst::ParamID kCcParamIdBase = 1100; // + CC number 0
 // repeat of the same CC a new token).
 inline constexpr Steinberg::Vst::ParamID kLastCcParamId = 1300;
 inline constexpr double kLastCcTokenScale = double(1 << 20);
-// Hidden read-only OUTPUT parameters: voice activity for the panel's grid,
-// s2::Synth::VoiceStates in kVoiceStateParamCount words of 8 voices (16 bits
-// / 65535, exact even through a float), sent when they change.
+// Hidden read-only OUTPUT parameters: one distinct parameter per voice.
+// This robustly reports Idle(0), Releasing(0.5), Playing(1) to the GUI even
+// in hosts that quantize or suppress tiny normalized parameter changes.
+// These are UI-only and never participate in the synthesizer sound engine.
 inline constexpr Steinberg::Vst::ParamID kVoiceStateParamIdBase = 1301;
-inline constexpr int kVoiceStateParamCount = 4;
-inline constexpr double kVoiceStateScale = 65535.0;
+inline constexpr int kVoiceStateParamCount = voiceproxy::kCount;
 // MIDI program change: the root unit's program list (= the current bank's
 // 128 slots) and its kIsProgramChange parameter (0..127), which hosts feed
 // with MIDI program changes; the processor switches and reports the slot on

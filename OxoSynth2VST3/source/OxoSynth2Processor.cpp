@@ -291,10 +291,10 @@ tresult PLUGIN_API OxoSynth2Processor::process(Vst::ProcessData &data) {
     if (pos < data.numSamples) synth_.Render(left + pos, right + pos, data.numSamples - pos);
     const uint64_t voices = synth_.VoiceStates();
     for (int w = 0; w < kVoiceStateParamCount; ++w) {
-        const uint64_t word = voices >> (16 * w) & 0xFFFF;
-        if (word != (sentVoices_ >> (16 * w) & 0xFFFF))
+        const int state = voiceproxy::State(voices, w);
+        if (state != voiceproxy::State(sentVoices_, w))
             AddOutputPoint(data.outputParameterChanges, kVoiceStateParamIdBase + Vst::ParamID(w), 0,
-                           double(word) / kVoiceStateScale);
+                           voiceproxy::Normalized(state));
     }
     sentVoices_ = voices;
     data.outputs[0].silenceFlags = 0;

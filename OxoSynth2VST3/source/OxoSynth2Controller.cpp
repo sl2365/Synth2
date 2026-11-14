@@ -313,8 +313,7 @@ int32_t OxoSynth2Controller::LastCC() {
 uint64_t OxoSynth2Controller::VoiceStates() {
     uint64_t s = 0;
     for (int w = 0; w < kVoiceStateParamCount; ++w)
-        s |= uint64_t(std::lround(getParamNormalized(kVoiceStateParamIdBase + Vst::ParamID(w)) * kVoiceStateScale))
-             << (16 * w);
+        s |= voiceproxy::BitsForVoice(w, getParamNormalized(kVoiceStateParamIdBase + Vst::ParamID(w)));
     return s;
 }
 
