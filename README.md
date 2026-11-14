@@ -22,7 +22,7 @@ Formats: macOS VST3 + AUv2, iPad AUv3, Windows VST3 (x64).
 ### IMPORTANT:
 This version is a fork of Chabs version. It provides several enhancements that Chab didn't include due to him wanting to keep a base version that is faithful to the original. This fork uses a different folder location than Chabs, so as not to cause conflicts. It's pretty much identical feature-wise and the sound engine is identical, though I added a new filter type: Notch.
 
-| Feature | Chab's Synth2 | Your Synth2 (sl23) |
+| Feature | Chab's Synth2 | Synth2 (sl23) |
 |---|---|---|
 | Filter types | 5 types: LP12, LP24, HP12, BP12, LPDL | 6 types, adding a resonant Notch filter with adjustable peaks |
 | Arpeggiator | 4 modes: Up, Down, Up & Down, Random | Adds As Played, following the order notes are pressed
@@ -37,6 +37,12 @@ This version is a fork of Chabs version. It provides several enhancements that C
 | Standard data folders | Oxo Music\Oxo Synth2 under AppData and Documents | Independent Synth2_Data folders under AppData and Documents |
 | Plugin identity | Oxo Synth2 / Oxo Music | Synth2 (sl23) / Dead Channel Audio, with separate VST3 IDs
 | Version numbering | Standard three-part version | Four-part version, starting at v1.1.5.25. This will follow Chab's version as far as the first three digits are concerned. |
+
+Both versions retain the original synthesis architecture, including oscillators, envelopes, LFOs, effects, delay, chorus, unison and Synth1 preset support.
+
+Your fork deliberately preserves the sound of the five original filter algorithms. The additional Notch algorithm is the principal new DSP feature. The other enhancements primarily affect the GUI, workflow and data management.
+
+Chab's upstream also supports Windows VST3, so the Windows port itself isn't a fork-only feature.
 
 ## Download
 
