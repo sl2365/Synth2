@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    FALLBACK ONLY, not used by default. Under Hardened Runtime the AUv2
+    component dlopens its nested Resources/plugin.vst3; same-Team-ID
+    signatures already satisfy library validation, so this should never be
+    needed. If a host refuses to load the AU with a library validation error,
+    set OXO_AUV2_DISABLE_LIBRARY_VALIDATION=1 for
+    tools/prepare_mac_installer.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

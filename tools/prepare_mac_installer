@@ -1,0 +1,311 @@
+#!/usr/bin/env bash
+#
+# Builds the macOS distribution: ONE .pkg (Audio Unit / VST3 checkboxes, see
+# tools/mac_installer/distribution.xml) wrapped in a .dmg. Run from anywhere:
+#
+#   tools/prepare_mac_installer [--skip-build] [--skip-notarize]
+#
+# Derived from Oxo Drums' script, minus its factory library: no patches are
+# bundled (third-party banks need their designer's permission, see AGENTS.md
+# Rules, "PATCHES"), so the payload is just the two plug-ins.
+#
+# NOTARIZATION IS THE DEFAULT: the point of this script is a releasable dmg,
+# and a signed-but-not-notarized one IS REFUSED once downloaded (Gatekeeper
+# only judges files carrying com.apple.quarantine, which a locally built one
+# does not - hence it still installs fine on this Mac). Pass --skip-notarize
+# while iterating on the installer itself.
+#
+# What it does:
+#   1. ./build_vst3.sh --no-install (universal Release, macOS 14+; NOT copied
+#                                  into ~/Library: a dev copy there beside
+#                                  the pkg's /Library one = two plug-ins)
+#   2. stages both plug-ins under a /Library/Audio/Plug-Ins tree
+#   3. signs, pkgbuilds one component pkg per plug-in, productbuilds the
+#      distribution pkg that carries the checkboxes
+#   4. unless --skip-notarize: notarizes + staples the pkg, wraps it in a
+#      compressed dmg, notarizes + staples that too (the pkg is stapled
+#      BEFORE it goes into the dmg, so both layers verify offline)
+#
+# THE AU IS SELF-CONTAINED. The SDK's AUv2 wrapper loads a VST3 out of
+# `<name>.component/Contents/Resources/plugin.vst3`, and in the build tree
+# that is a SYMLINK into OxoSynth2VST3/build. Staging replaces it with a real
+# copy of the bundle, so ticking only "Audio Unit" gives a working plug-in.
+#
+# NO USER FOLDERS ARE CREATED. The bank library (~/Music/<OXO_LIBRARY_FOLDER>)
+# and the settings folder (~/Library/Application Support/<OXO_DATA_FOLDER>)
+# are made on first use by the plug-in, which also copies its bundled starter
+# banks into the library then (once per bank, PatchLibrary.hpp
+# SeedStarterBanks). The installer runs as root: anything it created in a
+# home directory would be root-owned.
+#
+# IDENTITY + VERSION come from Identity.xcconfig (+ the gitignored
+# Identity.local.xcconfig), like build_vst3.sh and CMake: product name,
+# bundle id (pkg identifiers derive from it), website, library folder,
+# MARKETING_VERSION / CURRENT_PROJECT_VERSION. A fork gets its own installer
+# by editing that file (+ the texts in tools/mac_installer/resources).
+#
+# SIGNING is env-driven. With nothing set the script still produces an
+# unsigned dmg (fine for local installer testing, NOT for release):
+#
+#   export OXO_SIGN_ID_APP="Developer ID Application: NAME (TEAMID)"
+#   export OXO_SIGN_ID_INSTALLER="Developer ID Installer: NAME (TEAMID)"
+#   export OXO_NOTARY_PROFILE="oxo-notary"   # xcrun notarytool store-credentials
+#
+# Optional escape hatch: Developer ID means Hardened Runtime, and the AU
+# dlopens the nested VST3. Same-Team-ID signatures satisfy library validation,
+# so this should not be needed - if a host still refuses to load the AU:
+#
+#   export OXO_AUV2_DISABLE_LIBRARY_VALIDATION=1
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RES_DIR="$SCRIPT_DIR/mac_installer"
+
+IDENTITY_FILES=("$REPO_DIR/Identity.xcconfig")
+[[ -f "$REPO_DIR/Identity.local.xcconfig" ]] && IDENTITY_FILES+=("$REPO_DIR/Identity.local.xcconfig")
+identity() { # <KEY> -> value (the local override wins)
+    local value
+    value="$(sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" "${IDENTITY_FILES[@]}" | tail -1 | sed 's/[[:space:]]*$//')"
+    [[ -n "$value" ]] || { echo "ERROR: $1 missing in Identity.xcconfig" >&2; exit 1; }
+    printf '%s' "$value"
+}
+PRODUCT_NAME="$(identity OXO_PRODUCT_NAME)"
+PRODUCT_FILE="${PRODUCT_NAME// /}"
+BUNDLE_ID="$(identity OXO_BUNDLE_ID)"
+WEBSITE="$(identity OXO_VENDOR_WEBSITE)"
+LIBRARY_FOLDER="$(identity OXO_LIBRARY_FOLDER)"
+VERSION="$(identity MARKETING_VERSION)"
+BUILD_NUM="$(identity CURRENT_PROJECT_VERSION)"
+
+BUILD_OUT="$REPO_DIR/OxoSynth2VST3/build/VST3/Release"
+VST3_SRC="$BUILD_OUT/$PRODUCT_FILE.vst3"
+AUV2_SRC="$BUILD_OUT/$PRODUCT_NAME.component"
+
+DIST_DIR="$REPO_DIR/dist/mac"
+STAGE_DIR="$DIST_DIR/stage"
+PKG_DIR="$DIST_DIR/pkgs"
+DMG_ROOT="$DIST_DIR/dmgroot"
+
+SKIP_BUILD=0
+NOTARIZE=1
+for arg in "$@"; do
+    case "$arg" in
+        --skip-build)    SKIP_BUILD=1 ;;
+        --skip-notarize) NOTARIZE=0 ;;
+        *) echo "Unknown option: $arg" >&2; exit 2 ;;
+    esac
+done
+
+SIGN_ID_APP="${OXO_SIGN_ID_APP:-}"
+SIGN_ID_INSTALLER="${OXO_SIGN_ID_INSTALLER:-}"
+NOTARY_PROFILE="${OXO_NOTARY_PROFILE:-}"
+
+# pkg/productbuild want a dotted numeric version; the build number keeps
+# reinstalls of the same marketing version distinguishable.
+PKG_VERSION="$VERSION.$BUILD_NUM"
+# Artifact names carry the build too (1.0-1).
+VERSION_TAG="$VERSION-$BUILD_NUM"
+PRODUCT_PKG="$DIST_DIR/$PRODUCT_FILE-$VERSION_TAG-macOS.pkg"
+DMG_PATH="$DIST_DIR/$PRODUCT_FILE-$VERSION_TAG-macOS.dmg"
+VOL_NAME="$PRODUCT_NAME $VERSION"
+PKG_ID_VST3="$BUNDLE_ID.vst3.pkg"
+PKG_ID_AUV2="$BUNDLE_ID.auv2.pkg"
+
+echo "==> $PRODUCT_NAME $VERSION ($BUILD_NUM) macOS installer"
+if [[ -z "$SIGN_ID_APP" || -z "$SIGN_ID_INSTALLER" ]]; then
+    echo "!!! UNSIGNED BUILD: OXO_SIGN_ID_APP / OXO_SIGN_ID_INSTALLER not set."
+    echo "!!! Gatekeeper will refuse this pkg on other Macs - local testing only."
+    if [[ $NOTARIZE -eq 1 ]]; then
+        echo "ERROR: notarization needs both signing identities (Apple only" >&2
+        echo "       notarizes Developer ID signed code). Pass --skip-notarize" >&2
+        echo "       for a local unsigned installer test." >&2
+        exit 1
+    fi
+elif [[ $NOTARIZE -eq 1 && -z "$NOTARY_PROFILE" ]]; then
+    echo "ERROR: notarization needs OXO_NOTARY_PROFILE (see xcrun notarytool" >&2
+    echo "       store-credentials), or pass --skip-notarize." >&2
+    exit 1
+fi
+if [[ $NOTARIZE -eq 0 ]]; then
+    echo "==> Not notarizing (--skip-notarize): this dmg is REFUSED once downloaded"
+fi
+
+# ---------------------------------------------------------------- 1. build
+if [[ $SKIP_BUILD -eq 0 ]]; then
+    echo "==> Building plug-ins (build_vst3.sh --no-install)"
+    "$REPO_DIR/build_vst3.sh" --no-install
+else
+    echo "==> Skipping build (--skip-build)"
+fi
+
+for src in "$VST3_SRC" "$AUV2_SRC"; do
+    if [[ ! -d "$src" ]]; then
+        echo "ERROR: missing build product: $src" >&2
+        exit 1
+    fi
+done
+
+BINARY="$VST3_SRC/Contents/MacOS/$PRODUCT_FILE"
+MINOS="$(otool -l "$BINARY" | awk '/LC_BUILD_VERSION/{f=1} f&&/minos/{print $2; exit}')"
+if [[ "$MINOS" != 14.* ]]; then
+    echo "ERROR: built VST3 has minos $MINOS, expected 14.x (stale build dir?" >&2
+    echo "       rm -rf OxoSynth2VST3/build and rebuild)." >&2
+    exit 1
+fi
+# Both slices: the pkg is offered to Intel Macs too.
+ARCHS="$(lipo -archs "$BINARY")"
+if [[ "$ARCHS" != *arm64* || "$ARCHS" != *x86_64* ]]; then
+    echo "ERROR: built VST3 is not universal (archs: $ARCHS)." >&2
+    exit 1
+fi
+# --skip-build reuses whatever is there: say so when it was stamped otherwise.
+BUILT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$VST3_SRC/Contents/Info.plist" 2>/dev/null || true)"
+if [[ "$BUILT_VERSION" != "$VERSION" ]]; then
+    echo "!!! The built bundle says version '$BUILT_VERSION', the installer $VERSION."
+fi
+
+# ---------------------------------------------------------------- 2. stage
+echo "==> Staging install trees"
+rm -rf "$DIST_DIR"
+VST3_STAGE="$STAGE_DIR/vst3/Library/Audio/Plug-Ins/VST3"
+AUV2_STAGE="$STAGE_DIR/auv2/Library/Audio/Plug-Ins/Components"
+mkdir -p "$VST3_STAGE" "$AUV2_STAGE" "$PKG_DIR" "$DMG_ROOT"
+
+rsync -a --exclude '.DS_Store' "$VST3_SRC" "$VST3_STAGE/"
+rsync -a --exclude '.DS_Store' "$AUV2_SRC" "$AUV2_STAGE/"
+
+STAGED_VST3="$VST3_STAGE/$PRODUCT_FILE.vst3"
+STAGED_AUV2="$AUV2_STAGE/$PRODUCT_NAME.component"
+STAGED_INNER_VST3="$STAGED_AUV2/Contents/Resources/plugin.vst3"
+
+# The build tree's plugin.vst3 is a symlink into OxoSynth2VST3/build - replace
+# it with the real bundle so the AU works on a machine that has no VST3.
+rm -rf "$STAGED_INNER_VST3"
+rsync -a --exclude '.DS_Store' "$STAGED_VST3/" "$STAGED_INNER_VST3/"
+
+if find "$STAGE_DIR" -type l | grep -q .; then
+    echo "ERROR: symlinks left in the staged tree (would break on the user's Mac):" >&2
+    find "$STAGE_DIR" -type l >&2
+    exit 1
+fi
+xattr -cr "$STAGE_DIR"
+
+# World-readable, or the host process cannot read root-owned bundle files
+# that arrived as mode 600. a+rX keeps the Mach-O exec bits.
+chmod -R a+rX,go-w "$STAGE_DIR"
+if find "$STAGE_DIR" -type f ! -perm -004 -o -type d ! -perm -005 | grep -q .; then
+    echo "ERROR: staged files not readable by everyone:" >&2
+    find "$STAGE_DIR" -type f ! -perm -004 -o -type d ! -perm -005 >&2
+    exit 1
+fi
+
+# ---------------------------------------------------------------- 3. sign
+if [[ -n "$SIGN_ID_APP" ]]; then
+    echo "==> Signing bundles (hardened runtime, timestamped)"
+    sign_bundle() { # <bundle> [extra codesign args...]
+        local bundle="$1"; shift
+        codesign --force --timestamp --options runtime \
+            --sign "$SIGN_ID_APP" "$@" "$bundle"
+    }
+    # Inner-out: the nested copy first, then the component that seals it.
+    sign_bundle "$STAGED_INNER_VST3"
+    if [[ "${OXO_AUV2_DISABLE_LIBRARY_VALIDATION:-0}" == "1" ]]; then
+        echo "    (AU signed with library validation disabled)"
+        sign_bundle "$STAGED_AUV2" \
+            --entitlements "$RES_DIR/auv2-library-validation.entitlements"
+    else
+        sign_bundle "$STAGED_AUV2"
+    fi
+    sign_bundle "$STAGED_VST3"
+
+    codesign --verify --deep --strict --verbose=1 "$STAGED_AUV2"
+    codesign --verify --deep --strict --verbose=1 "$STAGED_VST3"
+fi
+
+# ------------------------------------------------------- 4. component pkgs
+echo "==> Building component packages"
+# NOT RELOCATABLE: by default Installer looks for a bundle with the same id
+# anywhere on disk (build_vst3.sh's ~/Library copies, the build tree) and
+# updates THAT one instead of writing /Library/Audio/Plug-Ins.
+component_plist() { # <root> <out.plist>
+    pkgbuild --quiet --analyze --root "$1" "$2"
+    local i=0
+    while /usr/libexec/PlistBuddy -c "Print :$i" "$2" >/dev/null 2>&1; do
+        plutil -replace "$i.BundleIsRelocatable" -bool NO "$2"
+        i=$((i + 1))
+    done
+}
+component_plist "$STAGE_DIR/vst3" "$DIST_DIR/vst3-components.plist"
+component_plist "$STAGE_DIR/auv2" "$DIST_DIR/auv2-components.plist"
+
+pkgbuild --quiet --root "$STAGE_DIR/vst3" \
+    --component-plist "$DIST_DIR/vst3-components.plist" \
+    --identifier "$PKG_ID_VST3" \
+    --version "$PKG_VERSION" --ownership recommended \
+    --install-location / "$PKG_DIR/vst3.pkg"
+pkgbuild --quiet --root "$STAGE_DIR/auv2" \
+    --component-plist "$DIST_DIR/auv2-components.plist" \
+    --identifier "$PKG_ID_AUV2" \
+    --version "$PKG_VERSION" --ownership recommended \
+    --install-location / "$PKG_DIR/auv2.pkg"
+
+echo "==> Building distribution package"
+# Templates: distribution.xml + resources/*.html. `|` delimits (values hold
+# `/`); the HTML gets the non-breaking-space form of the library path, its
+# `&` pre-escaped for the sed replacement.
+LIBRARY_HTML="$(printf '%s' "~/Music/$LIBRARY_FOLDER" | sed 's/ /\\\&nbsp;/g')"
+fill_template() { # <in> <out>
+    sed -e "s|__PRODUCT__|$PRODUCT_NAME|g" -e "s|__BUNDLE_ID__|$BUNDLE_ID|g" \
+        -e "s|__VERSION__|$VERSION|g" -e "s|__PKG_VERSION__|$PKG_VERSION|g" \
+        -e "s|__WEBSITE__|$WEBSITE|g" -e "s|__LIBRARY__|$LIBRARY_HTML|g" \
+        "$1" > "$2"
+}
+fill_template "$RES_DIR/distribution.xml" "$DIST_DIR/distribution.xml"
+mkdir -p "$DIST_DIR/resources"
+for f in "$RES_DIR"/resources/*; do
+    fill_template "$f" "$DIST_DIR/resources/$(basename "$f")"
+done
+
+PRODUCTBUILD_SIGN=()
+[[ -n "$SIGN_ID_INSTALLER" ]] && PRODUCTBUILD_SIGN=(--sign "$SIGN_ID_INSTALLER")
+productbuild --quiet --distribution "$DIST_DIR/distribution.xml" \
+    --package-path "$PKG_DIR" --resources "$DIST_DIR/resources" \
+    "${PRODUCTBUILD_SIGN[@]+"${PRODUCTBUILD_SIGN[@]}"}" "$PRODUCT_PKG"
+
+# ------------------------------------------------------------ 5. notarize
+notarize() { # <path>
+    echo "==> Notarizing $(basename "$1") (this waits on Apple)"
+    if ! xcrun notarytool submit "$1" --keychain-profile "$NOTARY_PROFILE" --wait; then
+        echo "ERROR: notarization failed. Get the details with:" >&2
+        echo "  xcrun notarytool history --keychain-profile \"$NOTARY_PROFILE\"" >&2
+        echo "  xcrun notarytool log <submission-id> --keychain-profile \"$NOTARY_PROFILE\"" >&2
+        exit 1
+    fi
+    xcrun stapler staple "$1"
+}
+[[ $NOTARIZE -eq 1 ]] && notarize "$PRODUCT_PKG"
+
+# ----------------------------------------------------------------- 6. dmg
+echo "==> Building dmg"
+cp -R "$PRODUCT_PKG" "$DMG_ROOT/"
+rm -f "$DMG_PATH"
+hdiutil create -quiet -volname "$VOL_NAME" -srcfolder "$DMG_ROOT" \
+    -fs HFS+ -format UDZO -ov "$DMG_PATH"
+
+if [[ -n "$SIGN_ID_APP" ]]; then
+    codesign --force --timestamp --sign "$SIGN_ID_APP" "$DMG_PATH"
+fi
+[[ $NOTARIZE -eq 1 ]] && notarize "$DMG_PATH"
+
+# -------------------------------------------------------------- 7. verify
+if [[ $NOTARIZE -eq 1 ]]; then
+    echo "==> Gatekeeper check"
+    spctl --assess -vv --type install "$PRODUCT_PKG"
+    spctl --assess -vv --type open --context context:primary-signature "$DMG_PATH"
+fi
+
+echo "==> Done"
+echo "pkg: $PRODUCT_PKG"
+echo "dmg: $DMG_PATH"

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Distribution definition for the macOS installer. __PRODUCT__ /
+    __BUNDLE_ID__ / __VERSION__ / __PKG_VERSION__ are substituted by
+    tools/prepare_mac_installer from Identity.xcconfig.
+
+    Floor macOS 14 (the CMake deployment target).
+
+    customize="always" opens the Custom Install pane directly, so the
+    checkboxes are the first thing the user sees. Audio Unit / VST3 both
+    start ticked.
+
+    NO DESTINATION PANE: rootVolumeOnly drops the "Select a Destination"
+    step (/Library/Audio/Plug-Ins on the startup volume is where every host
+    looks). It REPLACES `<domains enable_localSystem="true">` (mutually
+    exclusive: with both present domains wins and the pane comes back).
+    Writing under /Library needs root, so Installer raises its auth sheet at
+    the copy step.
+-->
+<installer-gui-script minSpecVersion="2">
+    <title>__PRODUCT__ __VERSION__</title>
+    <options customize="always" require-scripts="false" hostArchitectures="arm64,x86_64"
+             rootVolumeOnly="true"/>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+
+    <script>
+function oxoCheckOS() {
+    if (system.compareVersions(system.version.ProductVersion, '14.0') &lt; 0) {
+        my.result.type = 'Fatal';
+        my.result.title = 'macOS 14 or Later Required';
+        my.result.message = '__PRODUCT__ requires macOS 14 (Sonoma) or later. '
+            + 'This Mac runs macOS ' + system.version.ProductVersion + '.';
+        return false;
+    }
+    return true;
+}
+    </script>
+    <installation-check script="oxoCheckOS()"/>
+
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="14.0"/>
+        </allowed-os-versions>
+    </volume-check>
+
+    <choices-outline>
+        <line choice="choice_auv2"/>
+        <line choice="choice_vst3"/>
+    </choices-outline>
+
+    <choice id="choice_auv2"
+            title="Audio Unit"
+            description="__PRODUCT__ for Logic Pro, GarageBand, MainStage and any other AU host. Installs to /Library/Audio/Plug-Ins/Components.">
+        <pkg-ref id="__BUNDLE_ID__.auv2.pkg"/>
+    </choice>
+
+    <choice id="choice_vst3"
+            title="VST3"
+            description="__PRODUCT__ for Ableton Live, Cubase, Bitwig, REAPER, FL Studio and any other VST3 host. Installs to /Library/Audio/Plug-Ins/VST3.">
+        <pkg-ref id="__BUNDLE_ID__.vst3.pkg"/>
+    </choice>
+
+    <pkg-ref id="__BUNDLE_ID__.auv2.pkg" version="__PKG_VERSION__" onConclusion="none">auv2.pkg</pkg-ref>
+    <pkg-ref id="__BUNDLE_ID__.vst3.pkg" version="__PKG_VERSION__" onConclusion="none">vst3.pkg</pkg-ref>
+</installer-gui-script>
