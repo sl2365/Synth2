@@ -1,0 +1,86 @@
+{
+ "note36 static pw8": {
+  "ref": 8.0,
+  "ours": 8.0
+ },
+ "note36 static pw0": {
+  "ref": 1.25,
+  "ours": 1.267
+ },
+ "note36 static pw1": {
+  "ref": 1.25,
+  "ours": 1.267
+ },
+ "note36 static pw2": {
+  "ref": 2.001,
+  "ours": 2.024
+ },
+ "note60 static pw8": {
+  "ref": 8.0,
+  "ours": 8.0
+ },
+ "note60 static pw0": {
+  "ref": 1.25,
+  "ours": 1.25
+ },
+ "note60 static pw1": {
+  "ref": 1.25,
+  "ours": 1.25
+ },
+ "note60 static pw2": {
+  "ref": 2.0,
+  "ours": 2.0
+ },
+ "note84 static pw8": {
+  "ref": 8.0,
+  "ours": 8.0
+ },
+ "note84 static pw0": {
+  "ref": 1.25,
+  "ours": 1.25
+ },
+ "note84 static pw1": {
+  "ref": 1.25,
+  "ours": 1.25
+ },
+ "note84 static pw2": {
+  "ref": 2.0,
+  "ours": 2.0
+ },
+ "note72 env down pw20": {
+  "ref": 1.25,
+  "ours": 1.25
+ },
+ "note72 env down pw64": {
+  "ref": 1.25,
+  "ours": 1.25
+ },
+ "note72 env down pw110": {
+  "ref": 1.25,
+  "ours": 1.25
+ },
+ "note72 env down pw127": {
+  "ref": 1.25,
+  "ours": 1.25
+ },
+ "note72 env up pw20": {
+  "ref": 1.374,
+  "ours": 1.375
+ },
+ "note72 env up pw64": {
+  "ref": 1.375,
+  "ours": 1.375
+ },
+ "note72 env up pw110": {
+  "ref": 1.375,
+  "ours": 1.375
+ },
+ "note72 env up pw127": {
+  "ref": 1.375,
+  "ours": 1.375
+ },
+ "note72 static pw8": {
+  "ref": 8.0,
+  "ours": 8.0
+ }
+}
