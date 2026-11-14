@@ -40,7 +40,7 @@ This version is a fork of Chabs version. It provides several enhancements that C
 
 Both versions retain the original synthesis architecture, including oscillators, envelopes, LFOs, effects, delay, chorus, unison and Synth1 preset support.
 
-Your fork deliberately preserves the sound of the five original filter algorithms. The additional Notch algorithm is the principal new DSP feature. The other enhancements primarily affect the GUI, workflow and data management.
+This fork deliberately preserves the sound of the five original filter algorithms. The additional Notch algorithm is the principal new DSP feature. The other enhancements primarily affect the GUI, workflow and data management.
 
 Chab's upstream also supports Windows VST3, so the Windows port itself isn't a fork-only feature.
 
