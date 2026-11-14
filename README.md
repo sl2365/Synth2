@@ -26,7 +26,7 @@ This version is a fork of Chabs version. It provides several enhancements that C
 |---|---|---|
 | Filter types | 5 types: LP12, LP24, HP12, BP12, LPDL | 6 types, adding a resonant Notch filter with adjustable peaks |
 | Arpeggiator | 4 modes: Up, Down, Up & Down, Random | Adds As Played, following the order notes are pressed
-| GUI layout editor	Fixed interface layout	Built-in editor to move controls, resize sections, save custom layouts, undo and redo changes |
+| GUI layout editor | Fixed interface layout | Built-in editor to move controls, resize sections, save custom layouts, undo and redo changes |
 | Custom layouts | Factory layout only | Custom layouts stored in layout.json, separately from factory positions |
 | Preset favourites | Standard preset browser | Adds a virtual Favourites bank for quick access to preferred presets |
 | Preset colour display | Standard browser colouring | Additional preset colour coding, with a user preference to enable or disable it |
