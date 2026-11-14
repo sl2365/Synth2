@@ -4,7 +4,6 @@
 
 A free, open-source recreation of **Synth1**, the classic freeware synthesizer by Daichi Laboratory ([website](https://daichilab.sakura.ne.jp/softsynth/index.html)).
 
-
 Synth1 has been my go-to synth for years, as it has for many musicians, with thousands of patches on the web.
 Sadly, it seems to have been abandoned in recent years. No updates, no email replies. Mac users can keep it on life support with Rosetta, but Rosetta will be gone in macOS 28 (see [this article](https://developer.apple.com/news/?id=w5ngl9k2)).
 
@@ -18,6 +17,9 @@ Synth2 aims to keep those sounds playable on modern computers. Open source, so t
 Note: the original Synth1 was studied only through its audio output. The binary was never disassembled or decompiled (see the clean-room rule in [AGENTS.md](AGENTS.md#rules)).
 
 Formats: macOS VST3 + AUv2, iPad AUv3, Windows VST3 (x64).
+
+### IMPORTANT:
+This version is a fork of Chabs version. It provides several enhancements that Chab didn't include due to him wanting to keep a base version that is faithful to the original.
 
 ## Download
 
