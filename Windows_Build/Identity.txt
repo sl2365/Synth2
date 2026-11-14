@@ -1,0 +1,15 @@
+# Windows-only sl23 fork identity. Keep the prior sl23 VST3 class IDs stable.
+# Mac/iPad continue using the upstream Identity.xcconfig unchanged.
+# Windows fork uses independent Synth2_Data user folders, separate from Chab's release.
+OXO_PRODUCT_NAME = Synth2 (sl23)
+OXO_VENDOR = Dead Channel Audio
+OXO_VENDOR_WEBSITE = github.com/sl2365/Synth2/tree/master
+OXO_VENDOR_EMAIL =
+OXO_UPDATE_PRODUCT =
+OXO_BUNDLE_ID = com.sl23.synth2
+OXO_VST3_PROCESSOR_UID = 0B6267B6 663A4C99 AF8318DF 83F2DC49
+OXO_VST3_CONTROLLER_UID = 7811FC93 D57E48EE 877583B9 D33AB663
+OXO_DATA_FOLDER = Synth2_Data
+OXO_LIBRARY_FOLDER = Synth2_Data
+MARKETING_VERSION = 1.1.5
+CURRENT_PROJECT_VERSION = 10
