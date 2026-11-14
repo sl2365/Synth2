@@ -36,7 +36,7 @@ This version is a fork of Chabs version. It provides several enhancements that C
 | Portable data | Synth2_Data beside the VST3 bundle | Also supports Synth2_Data beside the internal VST3 binary |
 | Standard data folders | Oxo Music\Oxo Synth2 under AppData and Documents | Independent Synth2_Data folders under AppData and Documents |
 | Plugin identity | Oxo Synth2 / Oxo Music | Synth2 (sl23) / Dead Channel Audio, with separate VST3 IDs
-| Version numbering | Standard three-part version | Four-part version, starting at v1.1.5.25 |
+| Version numbering | Standard three-part version | Four-part version, starting at v1.1.5.25. This will follow Chab's version as far as the first three digits are concerned. |
 
 ## Download
 
