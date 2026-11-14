@@ -19,7 +19,7 @@ Note: the original Synth1 was studied only through its audio output. The binary 
 Formats: macOS VST3 + AUv2, iPad AUv3, Windows VST3 (x64).
 
 ### IMPORTANT:
-This version is a fork of Chabs version. It provides several enhancements that Chab didn't include due to him wanting to keep a base version that is faithful to the original.
+This version is a fork of Chabs version. It provides several enhancements that Chab didn't include due to him wanting to keep a base version that is faithful to the original. This fork uses a different folder location than Chabs, so as not to cause conflicts. It's pretty much identical feature-wise and the sound engine is identical, though I added a new filter type: Notch.
 
 ## Download
 
