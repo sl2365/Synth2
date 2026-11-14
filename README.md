@@ -1,3 +1,4 @@
+# Synth2
 
 <div align="center">
 
@@ -9,12 +10,9 @@
 
 </div>
 
-<p align="center"><img src="docs/images/synth2_preview.jpg" width="400" alt="The Synth2 panel"></p>
-
-# Synth2
+<p align="center"><img src="docs/images/synth2_preview.jpg" width="450" alt="The Synth2 panel"></p>
 
 A free, open-source recreation of **Synth1**, the classic freeware synthesizer by Daichi Laboratory ([website](https://daichilab.sakura.ne.jp/softsynth/index.html)).
-
 
 Synth1 has been my go-to synth for years, as it has for many musicians, with thousands of patches on the web.
 Sadly, it seems to have been abandoned in recent years. No updates, no email replies. Mac users can keep it on life support with Rosetta, but Rosetta will be gone in macOS 28 (see [this article](https://developer.apple.com/news/?id=w5ngl9k2)).
