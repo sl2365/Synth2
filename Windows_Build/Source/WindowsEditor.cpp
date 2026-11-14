@@ -9,7 +9,9 @@
 #include "WindowsZoomSettings.hpp"
 #include "WindowsThemeEditor.hpp"
 #include "WindowsPrompt.hpp"
+#include "WindowsManualPaths.hpp"
 #include <shellapi.h>
+#include <shlwapi.h>
 #include <shlobj.h>
 #include <commdlg.h>
 #include <cstring>
@@ -2103,7 +2105,7 @@ void WindowsEditor::drawDynamic(Graphics& g) {
     }
     if(!midiLearn_) {
         if(visible(kGridRect)) {
-            const uint64_t states=hooks_.voiceStates ? hooks_.voiceStates(hooks_.ctx) : 0;
+            const uint64_t states=visibleVoiceStates_;
             // Poly shows the allowed voice count; Mono and Legato show one
             // allocated square. Playing/released voices remain visible in all modes.
             const int allocated=value(38)==0 ? std::clamp(value(94),1,32) : 1;
@@ -3554,6 +3556,112 @@ void WindowsEditor::requestWidth(int width) {
     if(plugFrame->resizeView(this,&r)!=kResultOk)
         requestedZoomWidth_=-1;
 }
+// Open the local PDF only. Search relative to our loaded VST3 (never the
+// DAW EXE), then in the independent Synth2_Data user locations.
+void WindowsEditor::openUserManual() {
+    namespace fs = std::filesystem;
+    const fs::path module = storage::win::ThisModule();
+    const fs::path bundle = storage::win::Bundle();
+    const auto locations = storage::win::Chosen();
+    std::vector<fs::path> folders;
+    const auto add = [&](const fs::path& folder) {
+        if (!folder.empty() && std::find(folders.begin(),folders.end(),folder)==folders.end())
+            folders.push_back(folder);
+    };
+    if (!module.empty()) {
+        add(module.parent_path());
+        // Search this portable-data folder even when another location takes priority.
+        add(module.parent_path() / "Synth2_Data");
+    }
+    if (!bundle.empty()) {
+        std::error_code error;
+        if (fs::is_directory(bundle,error)) {
+            add(bundle / "Contents" / "Resources");
+            add(bundle);
+        }
+        add(bundle.parent_path());
+        // Search both portable-data positions independently of active storage mode.
+        add(bundle.parent_path() / "Synth2_Data");
+    }
+    add(locations.data);
+    add(locations.standardData);
+    add(locations.standardLibrary);
+
+    fs::path manual = winmanual::Find(folders, toWide(OXO_VERSION));
+    if (manual.empty()) {
+        // Allow a manual stored elsewhere to be opened without changing any
+        // settings or moving the user's file. A later click searches again.
+        if (MessageBoxW(window_,
+            L"Synth2_Manual.pdf was not found in the plugin or Synth2_Data folders.\n\n"
+            L"Would you like to browse for the PDF now?",
+            L"Synth2 User Manual",MB_YESNO|MB_ICONQUESTION) != IDYES) return;
+        wchar_t filename[4096] = L"Synth2_Manual.pdf";
+        OPENFILENAMEW dialog{};
+        dialog.lStructSize = sizeof(dialog);
+        dialog.hwndOwner = window_;
+        dialog.lpstrFile = filename;
+        dialog.nMaxFile = 4096;
+        dialog.lpstrFilter = L"PDF manuals (*.pdf)\0*.pdf\0All files (*.*)\0*.*\0";
+        dialog.lpstrDefExt = L"pdf";
+        dialog.Flags = OFN_EXPLORER|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST;
+        if (!GetOpenFileNameW(&dialog)) return;
+        manual = fs::path(filename);
+    }
+    // The PDF was found. Opening it is a separate Windows shell operation.
+    // A DAW's UI thread may not be initialized as a COM STA, which can make
+    // ShellExecute fail with certain PDF associations. Initialize when safe.
+    const HRESULT apartment = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    const bool mustUninit = SUCCEEDED(apartment);
+    INT_PTR result = reinterpret_cast<INT_PTR>(
+        ShellExecuteW(nullptr,L"open",manual.c_str(),nullptr,nullptr,SW_SHOWNORMAL));
+    std::wstring url;
+    if (result <= 32) {
+        // The default browser can display PDFs even when the host process
+        // cannot invoke the registered PDF handler directly. Correctly
+        // convert and escape a local/UNC path to a file: URI first.
+        url.assign(32768,L'\0');
+        DWORD count = DWORD(url.size());
+        if (SUCCEEDED(UrlCreateFromPathW(manual.c_str(),url.data(),&count,0))) {
+            url.resize(count);
+            const auto browser = reinterpret_cast<INT_PTR>(
+                ShellExecuteW(nullptr,L"open",url.c_str(),nullptr,nullptr,SW_SHOWNORMAL));
+            if (browser > 32) result = browser;
+        } else url.clear();
+    }
+    if (result <= 32 && !url.empty()) {
+        // Final fallback: run the system's file protocol handler from a
+        // separate Windows process. This avoids relying on the DAW's COM
+        // apartment for shell association/activation.
+        wchar_t systemDir[MAX_PATH]{};
+        const UINT n = GetSystemDirectoryW(systemDir, MAX_PATH);
+        if (n > 0 && n < MAX_PATH) {
+            const fs::path launcher = fs::path(systemDir) / L"rundll32.exe";
+            std::wstring cmd = L"\"" + launcher.wstring() +
+                L"\" url.dll,FileProtocolHandler \"" + url + L"\"";
+            STARTUPINFOW startup{};
+            startup.cb = sizeof(startup);
+            PROCESS_INFORMATION child{};
+            if (CreateProcessW(launcher.c_str(),cmd.data(),nullptr,nullptr,FALSE,0,
+                               nullptr,nullptr,&startup,&child)) {
+                CloseHandle(child.hThread);
+                CloseHandle(child.hProcess);
+                result = 33;
+            }
+        }
+    }
+    if (mustUninit) CoUninitialize();
+    if (result <= 32) {
+        // Distinguish a FOUND PDF that Windows cannot launch from a missing
+        // file. Include the exact candidate so users can open it manually.
+        const std::wstring message =
+            L"Synth2 found the PDF, but Windows could not open it.\n\n"
+            L"File: " + manual.wstring() +
+            L"\n\nShell error code: " + std::to_wstring(result) +
+            L"\n\nTry double-clicking this PDF in File Explorer or choose a default PDF app.";
+        MessageBoxW(window_,message.c_str(),L"Synth2 User Manual",MB_OK|MB_ICONERROR);
+    }
+}
+
 void WindowsEditor::showMainMenu(int x,int y) {
     HMENU menu=CreatePopupMenu();
     AppendMenuW(menu,MF_STRING,10,L"Initialize patch");
@@ -3580,6 +3688,8 @@ void WindowsEditor::showMainMenu(int x,int y) {
         AppendMenuW(menu,MF_STRING|(layoutRedo_.empty()?MF_GRAYED:0),22,L"Redo layout");
         AppendMenuW(menu,MF_STRING|(layoutSnap_?MF_CHECKED:0),23,L"Snap moves to 4 px");
     }
+    AppendMenuW(menu,MF_SEPARATOR,0,nullptr);
+    AppendMenuW(menu,MF_STRING,24,L"Open User Manual (PDF)");
     // UpdateCheck.enabled: no product slug (forks) = no entry
     if(*OXO_UPDATE_PRODUCT) {
         AppendMenuW(menu,MF_SEPARATOR,0,nullptr);
@@ -3620,6 +3730,7 @@ void WindowsEditor::showMainMenu(int x,int y) {
             break;
         case 15: showThemeEditor();break;
         case 16: checkForUpdates();break;
+        case 24: openUserManual();break;
         default: pickTheme(selected,picks);break;
     }
     repaint();
@@ -3729,8 +3840,9 @@ void WindowsEditor::tick() {
     for(size_t id=0;id<knownValues_.size();++id)
         if(value(int(id))!=knownValues_[id]) valueChanged(int(id));
     if(!midiLearn_ && hooks_.voiceStates) {
-        const uint64_t states=hooks_.voiceStates(hooks_.ctx);
-        if(states!=knownVoiceStates_) {knownVoiceStates_=states;invalidate(kGridRect);}
+        const uint64_t actual=hooks_.voiceStates(hooks_.ctx);
+        const uint64_t display=voiceActivityDisplay_.Update(actual,GetTickCount64());
+        if(display!=visibleVoiceStates_) {visibleVoiceStates_=display;invalidate(kGridRect);}
     }
 }
 

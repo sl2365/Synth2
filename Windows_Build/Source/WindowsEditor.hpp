@@ -16,6 +16,7 @@
 #include "WindowsHttp.hpp"
 #include "WindowsFavouritesLookup.hpp"
 #include "WindowsVoiceGrid.hpp"
+#include "WindowsVoiceActivity.hpp"
 
 namespace oxo {
 class OxoSynth2Controller;
@@ -145,6 +146,7 @@ private:
     void showThemeMenu(int x, int y);
     void showThemeEditor();
     void showAbout();
+    void openUserManual();
     void checkForUpdates();
     void updateArrived(); // kUpdateMessage: releases.json came (or not)
     void appendThemes(HMENU menu, std::vector<themes::Named>& picks) const;
@@ -249,7 +251,7 @@ private:
         {SectionId::Oscillators,212.f, 87.f,212.f,234.f},
         {SectionId::Oscillators,  8.f,163.f,204.f,163.f},
     }};
-    PortamentoLayout portamentoLayout_{106.f,63.f,100.f,68.f};
+    PortamentoLayout portamentoLayout_{106.f,67.f,100.f,53.f};
     SectionId buildingSection_ = SectionId::Fixed;
     std::vector<Control> controls_;
     LayoutSnapshot defaultLayout_{}; // captured after constructing the Stage A geometry
@@ -307,7 +309,10 @@ private:
     int slotScroll_ = 0;
     int knownRevision_ = -1;
     int knownSerial_ = -1;
-    uint64_t knownVoiceStates_ = 0;
+    // Display-only tracking: holds fast Release transitions long enough for
+    // the Windows GUI repaint, without changing any audio/voice envelopes.
+    winvoice::ActivityDisplay voiceActivityDisplay_{};
+    uint64_t visibleVoiceStates_ = 0;
     int hoveredControl_ = -1;
     int hoveredChrome_ = 0;
     bool trackingMouseLeave_ = false;
