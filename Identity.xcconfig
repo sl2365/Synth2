@@ -1,0 +1,54 @@
+// Product identity: THE file a fork edits (README, "Forks"). A fork that
+// ships builds must change every OXO_* value below (two plugins with the
+// same IDs / codes collide in hosts) and set its own DEVELOPMENT_TEAM.
+//
+// Read by OxoSynth2.xcodeproj (project base configuration) and parsed by
+// OxoSynth2VST3/CMakeLists.txt + build_vst3.sh: keep plain `KEY = value`
+// lines, comments on their own lines only (`//` would cut a value: hence
+// no URL scheme below, the VST3 adds https:// and mailto:).
+//
+// NOT identity: the state chunk tag 'OXS2' (EditorCore/State.hpp) and the
+// .sy1 format. Leave them, so forks stay state- and patch-compatible.
+
+// Display / bundle name (mac: "<name>.component", "<name without spaces>.vst3").
+OXO_PRODUCT_NAME = Oxo Synth2
+OXO_VENDOR = Oxo
+OXO_VENDOR_WEBSITE = oxo-music.com
+OXO_VENDOR_EMAIL = contact@oxo-music.com
+
+// Menu "Check for updates" (mac plugin): this product's slug in
+// https://<OXO_VENDOR_WEBSITE>/releases.json (oxo-music.com's
+// config/releases.yml). A fork empties it: no menu entry.
+OXO_UPDATE_PRODUCT = oxo_synth2
+
+// Bundle IDs derive from it: mac .vst3 / .audiounit, iPad app = as is,
+// appex = .AudioUnit.
+OXO_BUNDLE_ID = com.oxo.music.oxosynth2
+OXO_APP_GROUP = group.com.oxo.music.oxosynth2
+
+// Audio Unit (AUv2 wrapper on mac + AUv3 on iPad): 4-char codes. Apple
+// reserves all-lowercase manufacturer codes.
+OXO_AU_MANUFACTURER = OXOM
+OXO_AU_SUBTYPE = OXS2
+OXO_AU_NAME = Oxo: Oxo Synth2
+
+// VST3 class IDs: 4 x 32-bit hex words each. Generate fresh ones for a fork
+// (e.g. `uuidgen | tr -d - | sed 's/.\{8\}/& /g'`).
+OXO_VST3_PROCESSOR_UID = 496633A0 14184A63 B4CBB0DE 2D34B5B6
+OXO_VST3_CONTROLLER_UID = 6373C508 18B14394 A4CBB4EF 2C6F6E28
+
+// Mac per-user folders: settings (~/Library/Application Support/<this>) and
+// the bank library (~/Music/<this>). iPad keeps them in its sandbox.
+OXO_DATA_FOLDER = Oxo Music/Oxo Synth2
+OXO_LIBRARY_FOLDER = Oxo Music/Oxo Synth2
+
+// Version (VST3, AUv2, iPad app + extension). The AU plists' integer
+// `version` (AudioComponents) is set by hand next to it.
+MARKETING_VERSION = 1.1.5
+CURRENT_PROJECT_VERSION = 10
+
+// Apple signing team (iPad). Override without touching this file in a
+// gitignored Identity.local.xcconfig (any key above too).
+DEVELOPMENT_TEAM = 29G4VSKS8V
+
+#include? "Identity.local.xcconfig"
