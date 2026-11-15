@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Release](https://img.shields.io/github/v/release/sl2365/Synth2?style=for-the-badge-square&logo=github&logoColor=white&color=#C7C786)](https://github.com/sl2365/Synth2/releases/latest/download/Synth2.rar)
+[![Release](https://img.shields.io/github/v/release/sl2365/Synth2?style=for-the-badge-square&logo=github&logoColor=white&color=C7C786)](https://github.com/sl2365/Synth2/releases/latest/download/Synth2.rar)
 [![Release Date](https://img.shields.io/github/release-date/sl2365/Synth2?style=for-the-badge-square&logo=github&logoColor=white&color=yellow)](https://github.com/sl2365/Synth2/releases)
 
 [![Latest Asset Downloads](https://img.shields.io/github/downloads/sl2365/Synth2/latest/Synth2.rar?style=for-the-badge-square&logo=github&logoColor=white&label=downloads-latest&displayAssetName=false&color=blue)](https://github.com/sl2365/Synth2/releases/latest)
