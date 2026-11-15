@@ -12,22 +12,6 @@
 
 <p align="center"><img src="docs/images/synth2_preview.jpg" width="450" alt="The Synth2 panel"></p>
 
-A free, open-source recreation of **Synth1**, the classic freeware synthesizer by Daichi Laboratory ([website](https://daichilab.sakura.ne.jp/softsynth/index.html)).
-
-Synth1 has been my go-to synth for years, as it has for many musicians, with thousands of patches on the web.
-Sadly, it seems to have been abandoned in recent years. No updates, no email replies. Mac users can keep it on life support with Rosetta, but Rosetta will be gone in macOS 28 (see [this article](https://developer.apple.com/news/?id=w5ngl9k2)).
-
-Synth2 aims to keep those sounds playable on modern computers. Open source, so that anyone can keep the project alive in the future.
-
-
-- **Same parameters, same UI:** Some UX improvements (MIDI Learn, themes, etc.), but nothing was changed in the synth engine.
-- **Import patches:** All Synth1 patches (`.sy1` files and zip banks) load just like in Synth1.
-- **Carefully modeled with Claude:** Opus 5.5 generated ~ 3 GB of measurement data before modeling every parameter one by one.
-
-Note: the original Synth1 was studied only through its audio output. The binary was never disassembled or decompiled (see the clean-room rule in [AGENTS.md](AGENTS.md#rules)).
-
-Formats: macOS VST3 + AUv2, iPad AUv3, Windows VST3 (x64).
-
 ### IMPORTANT:
 This version is a fork of Chabs version. It provides several enhancements that Chab didn't include due to him wanting to keep a base version that is faithful to the original. This fork uses a different folder location than Chabs, so as not to cause conflicts. It's pretty much identical feature-wise and the sound engine is identical, though I added a new filter type: Notch.
 
@@ -52,6 +36,25 @@ Both versions retain the original synthesis architecture, including oscillators,
 This fork deliberately preserves the sound of the five original filter algorithms. The additional Notch algorithm is the principal new DSP feature. The other enhancements primarily affect the GUI, workflow and data management.
 
 Chab's upstream also supports Windows VST3, so the Windows port itself isn't a fork-only feature.
+
+
+## Original info
+
+A free, open-source recreation of **Synth1**, the classic freeware synthesizer by Daichi Laboratory ([website](https://daichilab.sakura.ne.jp/softsynth/index.html)).
+
+Synth1 has been my go-to synth for years, as it has for many musicians, with thousands of patches on the web.
+Sadly, it seems to have been abandoned in recent years. No updates, no email replies. Mac users can keep it on life support with Rosetta, but Rosetta will be gone in macOS 28 (see [this article](https://developer.apple.com/news/?id=w5ngl9k2)).
+
+Synth2 aims to keep those sounds playable on modern computers. Open source, so that anyone can keep the project alive in the future.
+
+
+- **Same parameters, same UI:** Some UX improvements (MIDI Learn, themes, etc.), but nothing was changed in the synth engine.
+- **Import patches:** All Synth1 patches (`.sy1` files and zip banks) load just like in Synth1.
+- **Carefully modeled with Claude:** Opus 5.5 generated ~ 3 GB of measurement data before modeling every parameter one by one.
+
+Note: the original Synth1 was studied only through its audio output. The binary was never disassembled or decompiled (see the clean-room rule in [AGENTS.md](AGENTS.md#rules)).
+
+Formats: macOS VST3 + AUv2, iPad AUv3, Windows VST3 (x64).
 
 ## Relationship to Synth1
 
