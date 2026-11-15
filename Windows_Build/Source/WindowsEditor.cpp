@@ -1810,16 +1810,18 @@ void WindowsEditor::drawChrome(Graphics& g,int id,bool hovered) {
     if(id==3 || id==4) {
         text(g,id==3?L"<":L">",r.X+1,r.Y,r.Width-3,r.Height,13,rgb(0xFFFFFF),true,true);
     } else if(id==17) {
-        // The reload symbol is drawn as a circular arrow at every zoom level.
-        // No symbol-font dependency, and the button matches the two arrows.
+        // Draw a lightweight reload glyph, independent of symbol fonts.
+        // A separate small arrowhead keeps both sides visible at 100% zoom.
         const float cx=r.X+r.Width*.5f,cy=r.Y+r.Height*.5f;
-        Pen arrow(rgb(0xFFFFFF),1.7f);
-        arrow.SetStartCap(LineCapRound);arrow.SetEndCap(LineCapRound);
-        arrow.SetLineJoin(LineJoinRound);
-        g.DrawArc(&arrow,cx-5.f,cy-5.f,10.f,10.f,-65.f,290.f);
-        const PointF tip(cx-3.54f,cy-3.54f);
-        g.DrawLine(&arrow,tip,PointF(tip.X-3.6f,tip.Y+.8f));
-        g.DrawLine(&arrow,tip,PointF(tip.X-.8f,tip.Y+3.6f));
+        const Color glyph=rgb(0xD3D7D9);
+        Pen arc(glyph,1.1f);
+        arc.SetStartCap(LineCapRound);arc.SetEndCap(LineCapRound);
+        g.DrawArc(&arc,cx-4.9f,cy-4.9f,9.8f,9.8f,20.f,270.f);
+        const PointF head[]={{cx+1.68f,cy-4.61f},
+                             {cx-1.20f,cy-4.01f},
+                             {cx-.14f,cy-6.92f}};
+        SolidBrush fill(glyph);
+        g.FillPolygon(&fill,head,3);
     } else if(id==16) {
         const int percent=int(std::lround(100.f*float(rect.getWidth())/kDesignWidth));
         text(g,L"Zoom "+std::to_wstring(percent)+L"%",r.X,r.Y,r.Width,r.Height,10,rgb(0xFFFFFF),true,true);
