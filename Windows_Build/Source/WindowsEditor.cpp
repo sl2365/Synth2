@@ -1790,6 +1790,7 @@ void WindowsEditor::drawLearn(Graphics& g) {
 RectF WindowsEditor::chromeRect(int id) {
     switch(id) {
     case 3: return {420,495,24,20};  case 4: return {449,495,24,20};
+    case 17: return {391,495,24,20}; // Reload the currently loaded preset
     case 5: return {492,488,50,26};  case 6: return {492,522,50,26};
     case 8: return {558,488,186,24}; case 9: return {514,38,84,20};
     case 10: return {604,38,74,20};  case 11: return {430,38,66,20};
@@ -1800,7 +1801,7 @@ RectF WindowsEditor::chromeRect(int id) {
     default: return {0,0,0,0};
     }
 }
-// The panel's own chrome buttons (< >, write, menu).
+// The panel's own chrome buttons (reload, < >, write, menu).
 void WindowsEditor::drawChrome(Graphics& g,int id,bool hovered) {
     const auto& p=colors_;
     const RectF r=chromeRect(id);
@@ -1808,6 +1809,17 @@ void WindowsEditor::drawChrome(Graphics& g,int id,bool hovered) {
     darkButton(g,face,r.X,r.Y,r.Width,r.Height,hovered);
     if(id==3 || id==4) {
         text(g,id==3?L"<":L">",r.X+1,r.Y,r.Width-3,r.Height,13,rgb(0xFFFFFF),true,true);
+    } else if(id==17) {
+        // The reload symbol is drawn as a circular arrow at every zoom level.
+        // No symbol-font dependency, and the button matches the two arrows.
+        const float cx=r.X+r.Width*.5f,cy=r.Y+r.Height*.5f;
+        Pen arrow(rgb(0xFFFFFF),1.7f);
+        arrow.SetStartCap(LineCapRound);arrow.SetEndCap(LineCapRound);
+        arrow.SetLineJoin(LineJoinRound);
+        g.DrawArc(&arrow,cx-5.f,cy-5.f,10.f,10.f,-65.f,290.f);
+        const PointF tip(cx-3.54f,cy-3.54f);
+        g.DrawLine(&arrow,tip,PointF(tip.X-3.6f,tip.Y+.8f));
+        g.DrawLine(&arrow,tip,PointF(tip.X-.8f,tip.Y+3.6f));
     } else if(id==16) {
         const int percent=int(std::lround(100.f*float(rect.getWidth())/kDesignWidth));
         text(g,L"Zoom "+std::to_wstring(percent)+L"%",r.X,r.Y,r.Width,r.Height,10,rgb(0xFFFFFF),true,true);
@@ -2062,7 +2074,7 @@ void WindowsEditor::drawStatic(Graphics& g) {
     GraphicsPath mainLcd;roundedPath(mainLcd,50,484,432,70,4.f);
     g.FillPath(&lcd,&mainLcd);
     roundedOutline(g,rgb(0x070707),50,484,432,70,4.f,1.5f);
-    for(const int id:{3,4,5,6,16}) drawChrome(g,id,false);
+    for(const int id:{17,3,4,5,6,16}) drawChrome(g,id,false);
     // Small bottom-right host-resize grip. All drawing scales as one canvas.
     Pen grip(blend(p[kPanel],p[kLabel],.65f),1.f);
     for(int i=0;i<3;i++) {
@@ -2081,7 +2093,7 @@ void WindowsEditor::drawDynamic(Graphics& g) {
     }
     if(midiLearn_ && !browser_) drawLearn(g);
     if(layoutEditing_ && !browser_) drawLayoutGuides(g);
-    for(const int id:{3,4,5,6,16})
+    for(const int id:{17,3,4,5,6,16})
         if(hoveredChrome_==id) drawChrome(g,id,true);
     if(visible(kLcdRect)) {
         int loadedBank=-1,loadedSlot=-1;
@@ -2412,17 +2424,17 @@ int WindowsEditor::slotAt(float x,float y) const {
     return index<count ? index : -1;
 }
 
-// Right click in the browser = PatchBrowserView's libraryMenu: a bank =
-// Export bank... / Show in Explorer [/ Delete bank...], a patch = Show in
-// Explorer [/ Delete]; nothing on read-only banks' deletes, nothing on
-// banks the write dialog cannot pick. Elsewhere in the browser: no menu.
+// Right click in the browser: a bank = Export / Show in Explorer / Delete;
+// a normal patch = Show in Explorer / Delete; a favourite = Go to bank.
+// Elsewhere in the browser: no menu.
 bool WindowsEditor::showLibraryMenu(float x,float y,int screenX,int screenY) {
     if(!browser_ || !kBrowserRect.Contains(x,y)) return false;
-    enum {kExport=1,kReveal,kDeleteBank,kDelete};
+    enum {kExport=1,kReveal,kDeleteBank,kDelete,kGoToBank};
     // What the menu acts on, taken NOW: the menu and the message boxes are
     // modal loops in which the timer still runs, and a background scan
     // landing meanwhile renumbers the banks.
     std::string source,slotFile,slotFavouriteBank;
+    winfav::Item favouriteOrigin; // snapshot across modal menu / library refresh
     int slotFavouriteNumber=-1;
     std::wstring slotLabel; // "NNN:name", for the LCD
     HMENU menu=CreatePopupMenu();
@@ -2440,7 +2452,14 @@ bool WindowsEditor::showLibraryMenu(float x,float y,int screenX,int screenY) {
         }
     } else if(const int index=slotAt(x,y); index>=0 && selectedBank_!=kNewUserBank) {
         const int b=selectedBank_,s=index;
-        if(b>=0 && b<int(banks_.size()) && !banks_[size_t(b)].slots[size_t(s)].empty() && hooks_.slotPath) {
+        if(!writing_ && b==kFavouritesBank && s<int(favourites_.size())) {
+            favouriteOrigin=favourites_[size_t(s)];
+            int sourceBank=-1,sourceSlot=-1;
+            const bool available=resolveFavourite(favouriteOrigin,sourceBank,sourceSlot);
+            AppendMenuW(menu,MF_STRING|(available?0:MF_GRAYED),kGoToBank,L"Go to bank");
+        } else if(b>=0 && b<int(banks_.size()) &&
+                  s<int(banks_[size_t(b)].slots.size()) &&
+                  !banks_[size_t(b)].slots[size_t(s)].empty() && hooks_.slotPath) {
             slotFile=hooks_.slotPath(hooks_.ctx,b,s);
             slotFavouriteBank=bankKey(b);slotFavouriteNumber=s;
             slotLabel=slotText(b,s);
@@ -2457,6 +2476,28 @@ bool WindowsEditor::showLibraryMenu(float x,float y,int screenX,int screenY) {
     auto adopt=[this] {adoptLibrary();};
     auto bankNow=[&] {return this->bankNow(source);};
     switch(choice) {
+    case kGoToBank: {
+        // The scan may finish while the context menu is open. Look up the
+        // favourite's original bank by its stable key, never a stale index.
+        if(hooks_.libraryRevision && hooks_.libraryRevision(hooks_.ctx)!=knownRevision_)
+            adoptLibrary();
+        int bank=-1,slot=-1;
+        if(!resolveFavourite(favouriteOrigin,bank,slot)) {
+            MessageBoxW(window_,L"The original bank or preset is no longer available.",
+                        L"Go to bank",MB_OK|MB_ICONINFORMATION);
+            break;
+        }
+        // Navigate and highlight only. Do NOT load the patch or change
+        // the sound currently playing in the host.
+        selectedBank_=bank;
+        selectedSlot_=slot;
+        scrollBankIntoView(bank);
+        slotScroll_=0;
+        const int rows=std::max(1,(int(banks_[size_t(bank)].slots.size())+3)/4);
+        const int row=slot%rows; // browser is column-major
+        if(row>=20)slotScroll_=row-19;
+        break;
+    }
     case kReveal:
         revealInExplorer(slotFile.empty() ? source : slotFile);
         break;
@@ -2817,6 +2858,35 @@ void WindowsEditor::cycle(int id,int step) {
     const int v=value(id)+step;
     setValueOnce(id,v>high?low:v<low?high:v);
 }
+// Restore the last loaded preset, not whichever bank happens to be
+// displayed in the browser. Master Volume is deliberately left unchanged.
+void WindowsEditor::reloadPatch() {
+    if(layoutEditing_) {flash(L"Exit Layout Edit before reloading a preset");return;}
+    // A preset loaded from a bank can be re-read from its original source.
+    // Adopt any finished library scan first: bank indices can change.
+    if(hooks_.libraryRevision && hooks_.libraryRevision(hooks_.ctx)!=knownRevision_)
+        adoptLibrary();
+    int bank=-1,slot=-1;
+    if(hooks_.loadedProgram) hooks_.loadedProgram(hooks_.ctx,&bank,&slot);
+    if(bank>=0 && bank<int(banks_.size()) && slot>=0 &&
+       slot<int(banks_[size_t(bank)].slots.size()) &&
+       !banks_[size_t(bank)].slots[size_t(slot)].empty() &&
+       hooks_.loadLibraryPatch && hooks_.loadLibraryPatch(hooks_.ctx,bank,slot)) {
+        repaint();
+        return;
+    }
+    // A directly opened .sy1, an initialised patch, or a restored DAW
+    // session has no library-bank reference. The Windows controller already
+    // keeps the loaded values for per-control double-click reset; reuse that
+    // same snapshot for a full-patch reload. ApplyPatch groups host edits
+    // and performs the usual patch-load transition, with no DSP changes.
+    s2::Sy1Patch patch=controller_->CurrentPatch();
+    for(int i=0;i<s2::kParamCount;++i)
+        patch.values[size_t(i)]=controller_->LoadedPatchValue(i);
+    controller_->ApplyPatch(patch);
+    repaint();
+}
+
 // < > (SynthModel.step): the next / previous non-empty slot, rolling into
 // the neighbouring banks (list order) at the ends.
 void WindowsEditor::stepPatch(int direction) {
@@ -3182,6 +3252,7 @@ void WindowsEditor::updateHover(float x,float y) {
             nextChrome=8; // Exit MIDI Learn
         else if(y>=484.f && y<=554.f) {
             if(x>=492.f && x<542.f) nextChrome=y<518.f ? 5 : y>=522.f ? 6 : 0;
+            else if(x>=391.f && x<415.f && y>=495.f && y<515.f) nextChrome=17;
             else if(x>=420.f && x<448.f && y>=495.f && y<515.f) nextChrome=3;
             else if(x>=449.f && x<473.f && y>=495.f && y<515.f) nextChrome=4;
         }
@@ -3252,6 +3323,7 @@ void WindowsEditor::mouseDown(float x,float y,bool doubleClick) {
             }
             POINT p;GetCursorPos(&p);showMainMenu(p.x,p.y);return;
         }
+        if(x>=391 && x<415 && y>=495 && y<515) {reloadPatch();return;}
         if(x>=420 && x<473 && y<520) {stepPatch(x<448?-1:1);return;}
         if(x>=50 && x<482) {
             if(layoutEditing_) {flash(L"Exit Layout Edit to browse banks");return;}

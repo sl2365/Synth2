@@ -157,6 +157,7 @@ private:
     void setPresetTextColours(bool enabled);
     void syncTheme();
     void showParameterMenu(int id, int x, int y);
+    void reloadPatch();
     void stepPatch(int direction);
     void showFileDialog(bool save);
     void showImportDialog(int screenX, int screenY);
